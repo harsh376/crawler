@@ -3,10 +3,10 @@ import unittest
 
 class TestCase(unittest.TestCase):
     def setUp(self):
-        print('setup')
+        pass
 
     def tearDown(self):
-        print('teardown')
+        pass
 
 if __name__ == '__main__':
     unittest.main()
