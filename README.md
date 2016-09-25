@@ -2,7 +2,7 @@
 
 ### Create a virtual environment 
 
-`cd ~/.../project`
+`cd ~/.../backend326`
 
 `virtualenv -p <SOME_PYTHON_PATH> venv`
 
@@ -24,7 +24,7 @@
 
 ### Running the tests
 
-`cd ~/.../project`
+`cd ~/.../backend326`
   
 `nosetests`
 
