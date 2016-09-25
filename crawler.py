@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import os
 import urllib2
 import urlparse
 from BeautifulSoup import *
@@ -116,7 +117,8 @@ class crawler(object):
 
         # get all urls into the queue
         try:
-            with open(url_file, 'r') as f:
+            url_file_path = os.path.join(os.path.dirname(__file__), url_file)
+            with open(url_file_path, 'r') as f:
                 for line in f:
                     self._url_queue.append(
                         (self._fix_url(line.strip(), ""), 0))

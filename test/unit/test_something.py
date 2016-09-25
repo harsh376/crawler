@@ -1,7 +1,8 @@
 from test.basetestcase import TestCase
 from crawler import crawler
 
-URLS_FILE = '../mock_data/urls.txt'
+# relative to /project
+URLS_FILE = './test/mock_data/urls.txt'
 
 
 class SomethingTestCase(TestCase):
