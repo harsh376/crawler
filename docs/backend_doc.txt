@@ -1,0 +1,47 @@
+CRAWLER
+
+This file provides a high level description of the changes that have been effected to the backend code provided to us
+
+The Crawler parses through a list of urls provided in urls.txt and stores the following information
+	1. Document Index: 	The function 'document_id' adds the url (in index form) into a data structure '_doc_id_cache'
+	2. Lexicon: 		The function 'word_id' adds the word (in id form) into a data structure '_word_id_cache'
+	3. Inverted Index: 	Whenever we add a word to the Lexicon or check to see if a word is already in a lexicon, we call the function 'update_inverted_index' which uses the word being added (in id form) as a key and the url the word has been found in (in id form) as value and adds it to a dictionary called _inverted_index.
+
+Two functions were also added, namely:
+	1. get_inverted_index(): 			This returns the Inverted Index generated from traversing all the urls provided in urls.txt
+	2. get_resolved_inverted_index(): 	This generates the resolved inverted index (a mapping of word (in actual word form) to url (in actual url form)) and returns it to the user.
+
+
+
+
+TESTING:
+
+We have also provided a few rudimentary test cases to check the correct working of our backend. We have implemented Python's unittest framework to design our test cases.
+The tests are under the ./test directory
+
+./test/basetestcase.py: 			Creates a subclass of unittest.TestCase and defines the setUp and tearDown to be used in the Unit Test Cases
+./test/unit/test_inverted_index.py:	Contains 2 tests that check the functionality of the generated inverted index
+									1. test_resolved_index_size: 	A test to see if the website is being parsed correctly for the number of words it has
+									2. test_keys_in_resolved_index: A test to see if the website is being parsed correctly for the actual words it has
+./test/unit/test_crawler.py:		Contains a test that checks to see if the urls are being processed, by the crawler correctly.
+
+
+
+
+HOW TO RUN THE APP:
+
+Create a virtual environment
+	>> virtualenv -p /usr/bin/python2.7 venv #virtualenv -p <SOME_PYTHON_PATH> venv
+	>> source venv/bin/activate
+	>> pip install -r requirements.txt 		 # Take care of any dependencies involved
+
+The backend can be run as follows:
+	>> from crawler import crawler
+	>> bot = crawler(None, "urls.txt") 	# Sets up the Crawler class and defines where the file of urls will be located
+	>> bot.crawl(depth=0) 				# Perform the crawling operation. The depth indicates how many inward links on a webpage, you would like the crawler to crawl
+	>> bot.get_inverted_index 			# Returns the inverted index generated as a result of the crawling
+	>> bot.get_resolved_inverted_index 	#Returns the resolved inverted Index
+
+In order to run the test cases, run the following command:
+	>> nosetests -v 	# Provides a verbose description of all tests being run and their results
+

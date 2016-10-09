@@ -51,6 +51,13 @@ class crawler(object):
         self._url_queue = []
         self._doc_id_cache = {}
         self._word_id_cache = {}
+        """
+        inverted_index: Stores a mapping between word_id and doc_id as provided by the crawler
+        _id_to_word:    In order to help with resolved_inverted_index, this dictionary maps the word_id to the actual word
+        _id_to_url:     Similarly, this dictionary, maps the doc_id to the actual url"""
+        self._inverted_index = {}
+        self._id_to_word = {}
+        self._id_to_url = {}
 
         # functions to call when entering and exiting specific tags
         self._enter = defaultdict(lambda *a, **ka: self._visit_ignore)
@@ -124,6 +131,29 @@ class crawler(object):
                         (self._fix_url(line.strip(), ""), 0))
         except IOError:
             pass
+    
+    # Returns the inverted index
+    def get_inverted_index(self):
+        return self._inverted_index
+
+    # Generates the resolved inverted index everytime the function is called
+    def get_resolved_inverted_index(self):
+        resolvedIndex = {}
+        for word_id in self._inverted_index:
+            # Cycle through each word id of the inverted index, then find the corresponding word
+            # and use that as the key. Then, convert each of the set values of inverted_index to 
+            # their url form, and store that as value for the resolved inverted index
+            currentWord = self._id_to_word[word_id]
+            currentUrlSet = self._inverted_index[word_id]
+            resolvedIndex[currentWord] = set([self._id_to_url[u] for u in currentUrlSet])
+        return resolvedIndex
+
+    # Adds a word_id to doc_id mapping. Creates a new set if the word hasn't been seen before
+    def update_inverted_index(self, word_id):
+        if word_id in self._inverted_index:
+            self._inverted_index[word_id].add(self._curr_doc_id)
+        else:
+            self._inverted_index[word_id] = set([self._curr_doc_id])
 
     # TODO remove me in real version
     def _mock_insert_document(self, url):
@@ -144,15 +174,17 @@ class crawler(object):
     def word_id(self, word):
         """Get the word id of some specific word."""
         if word in self._word_id_cache:
+            self.update_inverted_index(self._word_id_cache[word])
             return self._word_id_cache[word]
 
         # TODO: 1) add the word to the lexicon, if that fails, then the
         #          word is in the lexicon
         #       2) query the lexicon for the id assigned to this word,
         #          store it in the word id cache, and return the id.
-
         word_id = self._mock_insert_word(word)
+        self.update_inverted_index(word_id)
         self._word_id_cache[word] = word_id
+        self._id_to_word[word_id] = word
         return word_id
 
     def document_id(self, url):
@@ -163,9 +195,9 @@ class crawler(object):
         # TODO: just like word id cache, but for documents. if the document
         #       doesn't exist in the db then only insert the url and leave
         #       the rest to their defaults.
-
         doc_id = self._mock_insert_document(url)
         self._doc_id_cache[url] = doc_id
+        self._id_to_url[doc_id] = url
         return doc_id
 
     def _fix_url(self, curr_url, rel):
@@ -342,5 +374,7 @@ class crawler(object):
 
 if __name__ == "__main__":
     bot = crawler(None, "urls.txt")
-    bot.crawl(depth=1)
+    # Adjust the depth to determine how deep you want the crawler to crawl
+    bot.crawl(depth=0)
+    #print bot.get_resolved_inverted_index()
 
