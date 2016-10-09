@@ -8,7 +8,7 @@ class TestCase(unittest.TestCase):
     def setUp(self):
 		self.bot = crawler(None, "./test/mock_data/testurls.txt")
 		self.bot.crawl(depth=0)
-		self.temp_resolved_index = self.bot.get_resolved_index()
+		self.temp_resolved_index = self.bot.get_resolved_inverted_index()
 		print self.temp_resolved_index
 
     def tearDown(self):

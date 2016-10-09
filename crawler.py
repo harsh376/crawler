@@ -136,13 +136,13 @@ class crawler(object):
     def get_inverted_index(self):
         return self._inverted_index
 
-    # Generates the resolved index everytime the function is called
-    def get_resolved_index(self):
+    # Generates the resolved inverted index everytime the function is called
+    def get_resolved_inverted_index(self):
         resolvedIndex = {}
         for word_id in self._inverted_index:
             # Cycle through each word id of the inverted index, then find the corresponding word
             # and use that as the key. Then, convert each of the set values of inverted_index to 
-            # their url form, and store that as value for the resolved index
+            # their url form, and store that as value for the resolved inverted index
             currentWord = self._id_to_word[word_id]
             currentUrlSet = self._inverted_index[word_id]
             resolvedIndex[currentWord] = set([self._id_to_url[u] for u in currentUrlSet])
@@ -376,5 +376,5 @@ if __name__ == "__main__":
     bot = crawler(None, "urls.txt")
     # Adjust the depth to determine how deep you want the crawler to crawl
     bot.crawl(depth=0)
-    print bot.get_resolved_index()
+    #print bot.get_resolved_inverted_index()
 
