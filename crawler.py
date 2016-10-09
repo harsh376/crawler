@@ -55,7 +55,7 @@ class crawler(object):
         inverted_index: Stores a mapping between word_id and doc_id as provided by the crawler
         _id_to_word:    In order to help with resolved_inverted_index, this dictionary maps the word_id to the actual word
         _id_to_url:     Similarly, this dictionary, maps the doc_id to the actual url"""
-        self.inverted_index = {}
+        self._inverted_index = {}
         self._id_to_word = {}
         self._id_to_url = {}
 
@@ -134,24 +134,26 @@ class crawler(object):
     
     # Returns the inverted index
     def get_inverted_index(self):
-        return self.inverted_index
+        return self._inverted_index
 
     # Generates the resolved index everytime the function is called
     def get_resolved_index(self):
-        resolvedIndex = dict()
-        for keys in self.inverted_index:
+        resolvedIndex = {}
+        for word_id in self._inverted_index:
             # Cycle through each word id of the inverted index, then find the corresponding word
             # and use that as the key. Then, convert each of the set values of inverted_index to 
             # their url form, and store that as value for the resolved index
-            resolvedIndex[self._id_to_word[keys]] = set([self._id_to_url[u] for u in self.inverted_index[keys]])
+            currentWord = self._id_to_word[word_id]
+            currentUrlSet = self._inverted_index[word_id]
+            resolvedIndex[currentWord] = set([self._id_to_url[u] for u in currentUrlSet])
         return resolvedIndex
 
     # Adds a word_id to doc_id mapping. Creates a new set if the word hasn't been seen before
     def update_inverted_index(self, word_id):
-        if word_id in self.inverted_index:
-            self.inverted_index[word_id].add(self._curr_doc_id)
+        if word_id in self._inverted_index:
+            self._inverted_index[word_id].add(self._curr_doc_id)
         else:
-            self.inverted_index[word_id] = set([self._curr_doc_id])
+            self._inverted_index[word_id] = set([self._curr_doc_id])
 
     # TODO remove me in real version
     def _mock_insert_document(self, url):
