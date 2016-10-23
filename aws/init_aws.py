@@ -40,6 +40,7 @@ def configure_security_group(conn):
     sg.authorize('ICMP', -1, -1, '0.0.0.0/0')
     sg.authorize('TCP', 22, 22, '0.0.0.0/0')
     sg.authorize('TCP', 80, 80, '0.0.0.0/0')
+    sg.authorize('TCP', 8080, 8080, '0.0.0.0/0')
     return sg
 
 
