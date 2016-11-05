@@ -46,15 +46,19 @@ class crawler(object):
     ids and document ids."""
 
     def __init__(self, db_conn, url_file):
-        """Initialize the crawler with a connection to the database to populate
-        and with the file containing the list of seed URLs to begin indexing."""
+        """
+        Initialize the crawler with a connection to the database to populate
+        and with the file containing the list of seed URLs to begin indexing.
+        """
         self._url_queue = []
         self._doc_id_cache = {}
         self._word_id_cache = {}
-        """
-        inverted_index: Stores a mapping between word_id and doc_id as provided by the crawler
-        _id_to_word:    In order to help with resolved_inverted_index, this dictionary maps the word_id to the actual word
-        _id_to_url:     Similarly, this dictionary, maps the doc_id to the actual url"""
+        # inverted_index: Stores a mapping between word_id and doc_id as
+        # provided by the crawler
+        # _id_to_word: In order to help with resolved_inverted_index, this
+        # dictionary maps the word_id to the actual word
+        # _id_to_url: Similarly, this dictionary, maps the doc_id to the actual
+        # url
         self._inverted_index = {}
         self._id_to_word = {}
         self._id_to_url = {}
@@ -138,16 +142,18 @@ class crawler(object):
 
     # Generates the resolved inverted index everytime the function is called
     def get_resolved_inverted_index(self):
-        resolvedIndex = {}
+        resolved_index = {}
         for word_id in self._inverted_index:
             # Cycle through each word id of the inverted index, then find
             # the corresponding word and use that as the key. Then, convert
             # each of the set values of inverted_index to their url form, and
             # store that as value for the resolved inverted index
-            currentWord = self._id_to_word[word_id]
-            currentUrlSet = self._inverted_index[word_id]
-            resolvedIndex[currentWord] = set([self._id_to_url[u] for u in currentUrlSet])
-        return resolvedIndex
+            current_word = self._id_to_word[word_id]
+            current_url_set = self._inverted_index[word_id]
+            resolved_index[current_word] = set(
+                [self._id_to_url[u] for u in current_url_set],
+            )
+        return resolved_index
 
     # Adds a word_id to doc_id mapping. Creates a new set if the word hasn't
     # been seen before
@@ -253,7 +259,7 @@ class crawler(object):
         print "    num words=" + str(len(self._curr_words))
 
     def _increase_font_factor(self, factor):
-        """Increade/decrease the current font size."""
+        """Increase/decrease the current font size."""
 
         def increase_it(elem):
             self._font_size += factor
@@ -265,8 +271,10 @@ class crawler(object):
         pass
 
     def _add_text(self, elem):
-        """Add some text to the document. This records word ids and word font sizes
-        into the self._curr_words list for later processing."""
+        """
+        Add some text to the document. This records word ids and word font
+        sizes into the self._curr_words list for later processing.
+        """
         words = WORD_SEPARATORS.split(elem.string.lower())
         for word in words:
             word = word.strip()
@@ -286,10 +294,12 @@ class crawler(object):
             return elem.string
 
     def _index_document(self, soup):
-        """Traverse the document in depth-first order and call functions when entering
-        and leaving tags. When we come accross some text, add it into the index. This
-        handles ignoring tags that we have no business looking at."""
-
+        """
+        Traverse the document in depth-first order and call functions when
+        entering and leaving tags. When we come accross some text, add it into
+        the index. This handles ignoring tags that we have no business looking
+        at.
+        """
         class DummyTag(object):
             next = False
             name = ''
