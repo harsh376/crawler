@@ -7,11 +7,13 @@ URLS_FILE = './test/mock_data/urls.txt'
 
 class CrawlerTests(TestCase):
 
-    def setUp(self):
-        super(CrawlerTests, self).setUp()
+    @classmethod
+    def setUpClass(cls):
+        super(CrawlerTests, cls).setUpClass()
 
-    def tearDown(self):
-        super(CrawlerTests, self).tearDown()
+    @classmethod
+    def tearDownClass(cls):
+        super(CrawlerTests, cls).tearDownClass()
 
     # Check to see if the URL's are being parsed correctly
     def test_url_queue(self):
