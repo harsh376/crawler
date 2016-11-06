@@ -25,6 +25,7 @@ from BeautifulSoup import *
 from collections import defaultdict
 import re
 import sqlite3
+from pagerank import get_page_rank_scores
 
 
 def attr(elem, attr):
@@ -65,9 +66,13 @@ class crawler(object):
         # TODO: Update executescript to initialize required tables
         self.cursor.executescript(
             """
-            DROP TABLE IF EXISTS lexicon;
+            DROP TABLE IF EXISTS links;
+            DROP TABLE IF EXISTS page_ranks;
+
             CREATE TABLE IF NOT EXISTS
-            lexicon(word_id INTEGER PRIMARY KEY, word TEXT UNIQUE);
+                links(from_doc_id INTEGER, to_doc_id INTEGER);
+            CREATE TABLE IF NOT EXISTS
+                page_ranks(doc_id INTEGER PRIMARY KEY, rank REAL);
             """
         )
 
@@ -235,9 +240,17 @@ class crawler(object):
         return urlparse.urljoin(parsed_url.geturl(), rel)
 
     def add_link(self, from_doc_id, to_doc_id):
-        """Add a link into the database, or increase the number of links between
-        two pages in the database."""
-        # TODO
+        """
+        Add a link into the database, or increase the number of links
+        between two pages in the database.
+        """
+        # print (from_doc_id, to_doc_id)
+        if self.db_conn:
+            self.cursor.execute("INSERT INTO links VALUES ('%s', '%s')" % (
+                    from_doc_id,
+                    to_doc_id,
+                ))
+            self.db_conn.commit()
 
     def _visit_title(self, elem):
         """Called when visiting the <title> tag."""
@@ -396,9 +409,31 @@ class crawler(object):
                 if socket:
                     socket.close()
 
+    def update_page_ranks(self):
+        if self.cursor:
+            self.cursor.execute('SELECT * FROM links;')
+            links = self.cursor.fetchall()
+            page_rank_map = get_page_rank_scores(links=links)
+            for doc_id in page_rank_map:
+                self.cursor.execute(
+                    """INSERT OR REPLACE INTO page_ranks(doc_id, rank) VALUES(
+                        '%s', '%s'
+                    );""" % (doc_id, page_rank_map[doc_id]))
+            self.db_conn.commit()
+
+    def get_page_ranks(self):
+        if self.cursor:
+            self.cursor.execute('SELECT * FROM page_ranks;')
+            result = self.cursor.fetchall()
+            return result
+
 
 if __name__ == '__main__':
     db_conn = sqlite3.connect('backend.db')
     bot = crawler(db_conn=db_conn, url_file='urls.txt')
     # Adjust the depth to determine how deep you want the crawler to crawl
     bot.crawl(depth=0)
+    bot.update_page_ranks()
+
+    data = bot.get_page_ranks()
+    print (data)

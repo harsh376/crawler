@@ -1,1 +1,3 @@
-http://www.news.google.com
+https://ca.sports.yahoo.com
+https://ca.sports.yahoo.com/blogs
+https://ca.sports.yahoo.com/photos
