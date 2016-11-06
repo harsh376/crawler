@@ -24,6 +24,7 @@ import urlparse
 from BeautifulSoup import *
 from collections import defaultdict
 import re
+import sqlite3
 
 
 def attr(elem, attr):
@@ -53,15 +54,22 @@ class crawler(object):
         self._url_queue = []
         self._doc_id_cache = {}
         self._word_id_cache = {}
-        # inverted_index: Stores a mapping between word_id and doc_id as
-        # provided by the crawler
-        # _id_to_word: In order to help with resolved_inverted_index, this
-        # dictionary maps the word_id to the actual word
-        # _id_to_url: Similarly, this dictionary, maps the doc_id to the actual
-        # url
-        self._inverted_index = {}
+
+        self._inverted_index = {}   # {word_id1: [doc_id1, doc_id2, ...]}
         self._id_to_word = {}
         self._id_to_url = {}
+
+        # initialize database
+        self.db_conn = db_conn
+        self.cursor = self.db_conn.cursor()
+        # TODO: Update executescript to initialize required tables
+        self.cursor.executescript(
+            """
+            DROP TABLE IF EXISTS lexicon;
+            CREATE TABLE IF NOT EXISTS
+            lexicon(word_id INTEGER PRIMARY KEY, word TEXT UNIQUE);
+            """
+        )
 
         # functions to call when entering and exiting specific tags
         self._enter = defaultdict(lambda *a, **ka: self._visit_ignore)
@@ -135,6 +143,11 @@ class crawler(object):
                         (self._fix_url(line.strip(), ""), 0))
         except IOError:
             pass
+
+    def __del__(self):
+        if self.db_conn:
+            self.db_conn.commit()
+            self.db_conn.close()
 
     # Returns the inverted index
     def get_inverted_index(self):
@@ -384,7 +397,8 @@ class crawler(object):
                     socket.close()
 
 
-if __name__ == "__main__":
-    bot = crawler(None, "urls.txt")
+if __name__ == '__main__':
+    db_conn = sqlite3.connect('backend.db')
+    bot = crawler(db_conn=db_conn, url_file='urls.txt')
     # Adjust the depth to determine how deep you want the crawler to crawl
     bot.crawl(depth=0)

@@ -1,10 +1,11 @@
 import unittest
+import sqlite3
 
 
 class TestCase(unittest.TestCase):
 
     def setUp(self):
-        pass
+        self.db_conn = sqlite3.connect('test.db')
 
     def tearDown(self):
-        pass
+        self.db_conn.close()

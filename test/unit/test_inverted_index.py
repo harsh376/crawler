@@ -7,9 +7,13 @@ class InvertedIndexTests(TestCase):
     # Set Up is called by all tests, so run the crawler and save the
     # resolved index for later use
     def setUp(self):
-        self.bot = crawler(None, "./test/mock_data/testurls.txt")
+        super(InvertedIndexTests, self).setUp()
+        self.bot = crawler(self.db_conn, './test/mock_data/testurls.txt')
         self.bot.crawl(depth=0)
         self.temp_resolved_index = self.bot.get_resolved_inverted_index()
+
+    def tearDown(self):
+        super(InvertedIndexTests, self).tearDown()
 
     # Test to see if the number of words parsed in the given url is correct
     def test_get_resolved_index(self):
