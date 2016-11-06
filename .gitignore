@@ -2,3 +2,4 @@
 .idea/
 venv/
 aws/csc326_harsh.pem
+test.db

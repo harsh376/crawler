@@ -2,14 +2,24 @@ from test.basetestcase import TestCase
 from crawler import crawler
 
 
+# relative to /project
+URLS_FILE = './test/mock_data/testurls.txt'
+
+
 class InvertedIndexTests(TestCase):
 
-    # Set Up is called by all tests, so run the crawler and save the
-    # resolved index for later use
-    def setUp(self):
-        self.bot = crawler(None, "./test/mock_data/testurls.txt")
-        self.bot.crawl(depth=0)
-        self.temp_resolved_index = self.bot.get_resolved_inverted_index()
+    # Initialize db connection, run the crawler once before the tests begin
+    @classmethod
+    def setUpClass(cls):
+        super(InvertedIndexTests, cls).setUpClass()
+        cls.bot = crawler(cls.db_conn, URLS_FILE)
+        cls.bot.crawl(depth=0)
+        cls.temp_resolved_index = cls.bot.get_resolved_inverted_index()
+
+    # Close db connection
+    @classmethod
+    def tearDownClass(cls):
+        super(InvertedIndexTests, cls).tearDownClass()
 
     # Test to see if the number of words parsed in the given url is correct
     def test_get_resolved_index(self):
