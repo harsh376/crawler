@@ -242,7 +242,7 @@ class crawler(object):
         self._mock_next_word_id += 1
         return ret_id
 
-    def _insert_word_in_lexicon(self, word):
+    def insert_word_in_lexicon(self, word):
         try:
             self.cursor.execute(
                 """
@@ -259,7 +259,7 @@ class crawler(object):
             word_id = entry[0]
         return word_id
 
-    def _insert_doc_in_doc_index(self, url):
+    def insert_doc_in_doc_index(self, url):
         try:
             self.cursor.execute(
                 """
@@ -283,14 +283,14 @@ class crawler(object):
         # 2) query the lexicon for the id assigned to this word,
         # store it in the word id cache, and return the id.
         # word_id = self._mock_insert_word(word)
-        word_id = self._insert_word_in_lexicon(word=word)
+        word_id = self.insert_word_in_lexicon(word=word)
 
         self.update_inverted_index(word_id=word_id, doc_id=self._curr_doc_id)
         return word_id
 
     def document_id(self, url):
         # TODO: add caching
-        doc_id = self._insert_doc_in_doc_index(url)
+        doc_id = self.insert_doc_in_doc_index(url)
         return doc_id
 
     def _fix_url(self, curr_url, rel):
