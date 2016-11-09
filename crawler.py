@@ -57,9 +57,6 @@ class crawler(object):
         # self._word_id_cache = {}
         # self._inverted_index = {}   # {word_id1: [doc_id1, doc_id2, ...]}
 
-        self._id_to_word = {}
-        self._id_to_url = {}
-
         # initialize database
         self.db_conn = db_conn
         self.cursor = self.db_conn.cursor()
@@ -165,9 +162,8 @@ class crawler(object):
 
     def get_inverted_index(self):
         """
-        Reads (word_id, doc_id) rows from db, returns set of doc_ids for each
-        word_id
-        e.g. {word_id1: set([doc_id1, doc_id2, ...], word_id2: set([doc_ids]))}
+        :returns
+            {word_id1: set([doc_id1, doc_id2, ...], word_id2: set([doc_ids]))}
         """
         self.cursor.execute('SELECT * FROM inverted_index;')
         results = self.cursor.fetchall()
@@ -180,18 +176,43 @@ class crawler(object):
         return inverted_index
 
     def get_resolved_inverted_index(self):
-        inverted_index = self.get_inverted_index()
+        """
+        :returns
+            {word1: set([url1, url2, ...], word2: set([urls....])}
+        """
+
+        # More efficient to perform the JOINs on db level rather than fetching
+        # data and performing the JOINs in code
+        self.cursor.execute(
+            """
+            SELECT
+                a.word_id AS word_id,
+                a.word AS word,
+                a.doc_id AS doc_id,
+                b.url AS url
+            FROM (
+                SELECT
+                    lexicon.id AS word_id,
+                    lexicon.word AS word,
+                    inverted_index.doc_id AS doc_id
+                FROM inverted_index
+                INNER JOIN lexicon
+                ON inverted_index.word_id = lexicon.id
+            ) a
+            INNER JOIN (
+                SELECT *
+                FROM doc_index
+            ) b
+            ON a.doc_id = b.id;
+            """
+        )
+        result = self.cursor.fetchall()
         resolved_index = {}
-        for word_id in inverted_index:
-            # Cycle through each word id of the inverted index, then find
-            # the corresponding word and use that as the key. Then, convert
-            # each of the set values of inverted_index to their url form, and
-            # store that as value for the resolved inverted index
-            current_word = self._id_to_word[word_id]
-            current_url_set = inverted_index[word_id]
-            resolved_index[current_word] = set(
-                [self._id_to_url[u] for u in current_url_set],
-            )
+        for word_id, word, doc_id, url in result:
+            if word in resolved_index:
+                resolved_index[word].add(url)
+            else:
+                resolved_index[word] = set([url])
         return resolved_index
 
     def update_inverted_index(self, word_id, doc_id):
@@ -265,13 +286,11 @@ class crawler(object):
         word_id = self._insert_word_in_lexicon(word=word)
 
         self.update_inverted_index(word_id=word_id, doc_id=self._curr_doc_id)
-        self._id_to_word[word_id] = word
         return word_id
 
     def document_id(self, url):
         # TODO: add caching
         doc_id = self._insert_doc_in_doc_index(url)
-        self._id_to_url[doc_id] = url
         return doc_id
 
     def _fix_url(self, curr_url, rel):
