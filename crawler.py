@@ -74,7 +74,11 @@ class crawler(object):
             CREATE TABLE IF NOT EXISTS
                 doc_index(id INTEGER PRIMARY KEY, url TEXT UNIQUE);
             CREATE TABLE IF NOT EXISTS
-                inverted_index(word_id INTEGER, doc_id INTEGER);
+                inverted_index(
+                    word_id INTEGER,
+                    doc_id INTEGER,
+                    UNIQUE(word_id, doc_id)
+                );
             CREATE TABLE IF NOT EXISTS
                 links(from_doc_id INTEGER, to_doc_id INTEGER);
             CREATE TABLE IF NOT EXISTS
@@ -221,7 +225,9 @@ class crawler(object):
         """
         self.cursor.execute(
             """
-            INSERT INTO inverted_index(word_id, doc_id) VALUES('%s', '%s');
+            INSERT OR REPLACE INTO inverted_index(word_id, doc_id) VALUES(
+                '%s', '%s'
+            );
             """ % (word_id, doc_id)
         )
         self.db_conn.commit()
@@ -243,37 +249,23 @@ class crawler(object):
         return ret_id
 
     def insert_word_in_lexicon(self, word):
-        try:
-            self.cursor.execute(
-                """
-                INSERT INTO lexicon(word) VALUES('%s');
-                """ % word
-            )
-            self.db_conn.commit()
-            word_id = self.cursor.lastrowid
-        except sqlite3.Error:
-            self.cursor.execute(
-                """SELECT * FROM lexicon WHERE word='%s';""" % word
-            )
-            entry = self.cursor.fetchone()
-            word_id = entry[0]
+        self.cursor.execute(
+            """
+            INSERT OR REPLACE INTO lexicon(word) VALUES('%s');
+            """ % word
+        )
+        self.db_conn.commit()
+        word_id = self.cursor.lastrowid
         return word_id
 
     def insert_doc_in_doc_index(self, url):
-        try:
-            self.cursor.execute(
-                """
-                INSERT INTO doc_index(url) VALUES('%s');
-                """ % url
-            )
-            self.db_conn.commit()
-            doc_id = self.cursor.lastrowid
-        except sqlite3.Error:
-            self.cursor.execute(
-                """SELECT * FROM doc_index WHERE url='%s';""" % url
-            )
-            entry = self.cursor.fetchone()
-            doc_id = entry[0]
+        self.cursor.execute(
+            """
+            INSERT OR REPLACE INTO doc_index(url) VALUES('%s');
+            """ % url
+        )
+        self.db_conn.commit()
+        doc_id = self.cursor.lastrowid
         return doc_id
 
     def word_id(self, word):
