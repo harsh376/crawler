@@ -90,20 +90,22 @@ class CrawlerTests(TestCase):
     def test_update_inverted_index(self):
         c = crawler(self.db_conn, URLS_FILE1)
         c.update_inverted_index(1, 2)
+        # try inserting duplicate, should replace
+        c.update_inverted_index(1, 2)
         c.update_inverted_index(1, 3)
         c.update_inverted_index(2, 3)
-        data = c.get_inverted_index()
-        self.assertEqual(data, {
-            1: {2, 3},
-            2: {3},
-        })
+
+        cursor = self.db_conn.cursor()
+        cursor.execute('SELECT * FROM inverted_index')
+        data = cursor.fetchall()
+        self.assertEqual(data, [(1, 2), (1, 3), (2, 3)])
 
     def test_insert_word_in_lexicon(self):
         c = crawler(self.db_conn, URLS_FILE1)
         word = 'One'
 
         c.insert_word_in_lexicon(word=word)
-        # Trying to insert a duplicate
+        # Trying to insert a duplicate, should replace
         word_id = c.insert_word_in_lexicon(word=word)
 
         # Fetching all rows for the given word; Ensure no duplicates
@@ -119,7 +121,7 @@ class CrawlerTests(TestCase):
         url = 'http://www.google.com'
 
         c.insert_doc_in_doc_index(url=url)
-        # Trying to insert a duplicate
+        # Trying to insert a duplicate, should replace
         doc_id = c.insert_doc_in_doc_index(url=url)
 
         # Fetching all rows for the given url; Ensure no duplicates
