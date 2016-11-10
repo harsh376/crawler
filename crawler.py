@@ -53,12 +53,9 @@ class crawler(object):
         and with the file containing the list of seed URLs to begin indexing.
         """
         self._url_queue = []
-        self._doc_id_cache = {}
-        self._word_id_cache = {}
-
-        self._inverted_index = {}   # {word_id1: [doc_id1, doc_id2, ...]}
-        self._id_to_word = {}
-        self._id_to_url = {}
+        # self._doc_id_cache = {}
+        # self._word_id_cache = {}
+        # self._inverted_index = {}   # {word_id1: [doc_id1, doc_id2, ...]}
 
         # initialize database
         self.db_conn = db_conn
@@ -66,9 +63,18 @@ class crawler(object):
         # TODO: Update executescript to initialize required tables
         self.cursor.executescript(
             """
+            DROP TABLE IF EXISTS lexicon;
+            DROP TABLE IF EXISTS doc_index;
+            DROP TABLE IF EXISTS inverted_index;
             DROP TABLE IF EXISTS links;
             DROP TABLE IF EXISTS page_ranks;
 
+            CREATE TABLE IF NOT EXISTS
+                lexicon(id INTEGER PRIMARY KEY, word TEXT UNIQUE);
+            CREATE TABLE IF NOT EXISTS
+                doc_index(id INTEGER PRIMARY KEY, url TEXT UNIQUE);
+            CREATE TABLE IF NOT EXISTS
+                inverted_index(word_id INTEGER, doc_id INTEGER);
             CREATE TABLE IF NOT EXISTS
                 links(from_doc_id INTEGER, to_doc_id INTEGER);
             CREATE TABLE IF NOT EXISTS
@@ -154,32 +160,71 @@ class crawler(object):
             self.db_conn.commit()
             self.db_conn.close()
 
-    # Returns the inverted index
     def get_inverted_index(self):
-        return self._inverted_index
+        """
+        :returns
+            {word_id1: set([doc_id1, doc_id2, ...], word_id2: set([doc_ids]))}
+        """
+        self.cursor.execute('SELECT * FROM inverted_index;')
+        results = self.cursor.fetchall()
+        inverted_index = {}
+        for word_id, doc_id in results:
+            if word_id in inverted_index:
+                inverted_index[word_id].add(doc_id)
+            else:
+                inverted_index[word_id] = set([doc_id])
+        return inverted_index
 
-    # Generates the resolved inverted index everytime the function is called
     def get_resolved_inverted_index(self):
+        """
+        :returns
+            {word1: set([url1, url2, ...], word2: set([urls....])}
+        """
+
+        # More efficient to perform the JOINs on db level rather than fetching
+        # data and performing the JOINs in code
+        self.cursor.execute(
+            """
+            SELECT
+                a.word_id AS word_id,
+                a.word AS word,
+                a.doc_id AS doc_id,
+                b.url AS url
+            FROM (
+                SELECT
+                    lexicon.id AS word_id,
+                    lexicon.word AS word,
+                    inverted_index.doc_id AS doc_id
+                FROM inverted_index
+                INNER JOIN lexicon
+                ON inverted_index.word_id = lexicon.id
+            ) a
+            INNER JOIN (
+                SELECT *
+                FROM doc_index
+            ) b
+            ON a.doc_id = b.id;
+            """
+        )
+        result = self.cursor.fetchall()
         resolved_index = {}
-        for word_id in self._inverted_index:
-            # Cycle through each word id of the inverted index, then find
-            # the corresponding word and use that as the key. Then, convert
-            # each of the set values of inverted_index to their url form, and
-            # store that as value for the resolved inverted index
-            current_word = self._id_to_word[word_id]
-            current_url_set = self._inverted_index[word_id]
-            resolved_index[current_word] = set(
-                [self._id_to_url[u] for u in current_url_set],
-            )
+        for word_id, word, doc_id, url in result:
+            if word in resolved_index:
+                resolved_index[word].add(url)
+            else:
+                resolved_index[word] = set([url])
         return resolved_index
 
-    # Adds a word_id to doc_id mapping. Creates a new set if the word hasn't
-    # been seen before
-    def update_inverted_index(self, word_id):
-        if word_id in self._inverted_index:
-            self._inverted_index[word_id].add(self._curr_doc_id)
-        else:
-            self._inverted_index[word_id] = set([self._curr_doc_id])
+    def update_inverted_index(self, word_id, doc_id):
+        """
+        Adds (word_id, doc_id) entry into inverted_index table
+        """
+        self.cursor.execute(
+            """
+            INSERT INTO inverted_index(word_id, doc_id) VALUES('%s', '%s');
+            """ % (word_id, doc_id)
+        )
+        self.db_conn.commit()
 
     # TODO remove me in real version
     def _mock_insert_document(self, url):
@@ -197,33 +242,55 @@ class crawler(object):
         self._mock_next_word_id += 1
         return ret_id
 
-    def word_id(self, word):
-        """Get the word id of some specific word."""
-        if word in self._word_id_cache:
-            self.update_inverted_index(self._word_id_cache[word])
-            return self._word_id_cache[word]
+    def insert_word_in_lexicon(self, word):
+        try:
+            self.cursor.execute(
+                """
+                INSERT INTO lexicon(word) VALUES('%s');
+                """ % word
+            )
+            self.db_conn.commit()
+            word_id = self.cursor.lastrowid
+        except sqlite3.Error:
+            self.cursor.execute(
+                """SELECT * FROM lexicon WHERE word='%s';""" % word
+            )
+            entry = self.cursor.fetchone()
+            word_id = entry[0]
+        return word_id
 
-        # TODO: 1) add the word to the lexicon, if that fails, then the
-        #          word is in the lexicon
-        #       2) query the lexicon for the id assigned to this word,
-        #          store it in the word id cache, and return the id.
-        word_id = self._mock_insert_word(word)
-        self.update_inverted_index(word_id)
-        self._word_id_cache[word] = word_id
-        self._id_to_word[word_id] = word
+    def insert_doc_in_doc_index(self, url):
+        try:
+            self.cursor.execute(
+                """
+                INSERT INTO doc_index(url) VALUES('%s');
+                """ % url
+            )
+            self.db_conn.commit()
+            doc_id = self.cursor.lastrowid
+        except sqlite3.Error:
+            self.cursor.execute(
+                """SELECT * FROM doc_index WHERE url='%s';""" % url
+            )
+            entry = self.cursor.fetchone()
+            doc_id = entry[0]
+        return doc_id
+
+    def word_id(self, word):
+        # TODO: add caching
+        # 1) add the word to the lexicon, if that fails, then the
+        # word is in the lexicon
+        # 2) query the lexicon for the id assigned to this word,
+        # store it in the word id cache, and return the id.
+        # word_id = self._mock_insert_word(word)
+        word_id = self.insert_word_in_lexicon(word=word)
+
+        self.update_inverted_index(word_id=word_id, doc_id=self._curr_doc_id)
         return word_id
 
     def document_id(self, url):
-        """Get the document id for some url."""
-        if url in self._doc_id_cache:
-            return self._doc_id_cache[url]
-
-        # TODO: just like word id cache, but for documents. if the document
-        #       doesn't exist in the db then only insert the url and leave
-        #       the rest to their defaults.
-        doc_id = self._mock_insert_document(url)
-        self._doc_id_cache[url] = doc_id
-        self._id_to_url[doc_id] = url
+        # TODO: add caching
+        doc_id = self.insert_doc_in_doc_index(url)
         return doc_id
 
     def _fix_url(self, curr_url, rel):
