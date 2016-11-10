@@ -253,23 +253,37 @@ class crawler(object):
         return ret_id
 
     def insert_word_in_lexicon(self, word):
-        self.cursor.execute(
-            """
-            INSERT OR REPLACE INTO lexicon(word) VALUES('%s');
-            """ % word
-        )
-        self.db_conn.commit()
-        word_id = self.cursor.lastrowid
+        try:
+            self.cursor.execute(
+                """
+                INSERT INTO lexicon(word) VALUES('%s');
+                """ % word
+            )
+            self.db_conn.commit()
+            word_id = self.cursor.lastrowid
+        except sqlite3.Error:
+            self.cursor.execute(
+                """SELECT * FROM lexicon WHERE word='%s';""" % word
+            )
+            entry = self.cursor.fetchone()
+            word_id = entry[0]
         return word_id
 
     def insert_doc_in_doc_index(self, url):
-        self.cursor.execute(
-            """
-            INSERT OR REPLACE INTO doc_index(url) VALUES('%s');
-            """ % url
-        )
-        self.db_conn.commit()
-        doc_id = self.cursor.lastrowid
+        try:
+            self.cursor.execute(
+                """
+                INSERT INTO doc_index(url) VALUES('%s');
+                """ % url
+            )
+            self.db_conn.commit()
+            doc_id = self.cursor.lastrowid
+        except sqlite3.Error:
+            self.cursor.execute(
+                """SELECT * FROM doc_index WHERE url='%s';""" % url
+            )
+            entry = self.cursor.fetchone()
+            doc_id = entry[0]
         return doc_id
 
     def word_id(self, word):
@@ -509,3 +523,4 @@ if __name__ == '__main__':
 
     data = bot.get_page_ranks()
     print (data)
+
