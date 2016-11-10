@@ -72,7 +72,11 @@ class crawler(object):
             CREATE TABLE IF NOT EXISTS
                 lexicon(id INTEGER PRIMARY KEY, word TEXT UNIQUE);
             CREATE TABLE IF NOT EXISTS
-                doc_index(id INTEGER PRIMARY KEY, url TEXT UNIQUE);
+                doc_index(
+                    id INTEGER PRIMARY KEY,
+                    url TEXT UNIQUE,
+                    title TEXT
+                );
             CREATE TABLE IF NOT EXISTS
                 inverted_index(
                     word_id INTEGER,
@@ -311,12 +315,20 @@ class crawler(object):
                 ))
             self.db_conn.commit()
 
+    def update_title(self, doc_id, title_text):
+        self.cursor.execute(
+            """
+            UPDATE doc_index
+            SET title='%s'
+            WHERE id='%s'
+            """ % (title_text, doc_id)
+        )
+
     def _visit_title(self, elem):
         """Called when visiting the <title> tag."""
         title_text = self._text_of(elem).strip()
-        print "document title=" + repr(title_text)
-
-        # TODO update document title for document id self._curr_doc_id
+        doc_title = title_text.encode('utf-8')
+        self.update_title(doc_id=self._curr_doc_id, title_text=doc_title)
 
     def _visit_a(self, elem):
         """Called when visiting <a> tags."""

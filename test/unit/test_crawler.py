@@ -130,7 +130,7 @@ class CrawlerTests(TestCase):
             """SELECT * FROM doc_index WHERE id='%s';""" % doc_id
         )
         data = cursor.fetchall()
-        self.assertEqual(data, [(doc_id, url)])
+        self.assertEqual(data, [(doc_id, url, None)])
 
     def test_word_id(self):
         # setup
@@ -169,4 +169,23 @@ class CrawlerTests(TestCase):
             """SELECT * FROM doc_index WHERE id='%s';""" % doc_id
         )
         data = cursor.fetchall()
-        self.assertEqual(data, [(doc_id, url)])
+        self.assertEqual(data, [(doc_id, url, None)])
+
+    def test_update_title(self):
+        # setup
+        c = crawler(self.db_conn, URLS_FILE1)
+        cursor = self.db_conn.cursor()
+        url = 'http://www.google.com'
+        doc_id = c.insert_doc_in_doc_index(url=url)
+
+        cursor.execute('SELECT * FROM doc_index')
+        data = cursor.fetchall()
+        self.assertEqual(data, [(doc_id, url, None)])
+
+        # update title
+        title = 'Photo Gallery - Yahoo! Canada Sports'
+        c.update_title(doc_id=doc_id, title_text=title)
+
+        cursor.execute('SELECT * FROM doc_index')
+        data = cursor.fetchall()
+        self.assertEqual(data, [(doc_id, url, title)])
