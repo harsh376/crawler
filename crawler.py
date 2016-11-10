@@ -323,6 +323,7 @@ class crawler(object):
             WHERE id='%s'
             """ % (title_text, doc_id)
         )
+        self.db_conn.commit()
 
     def _visit_title(self, elem):
         """Called when visiting the <title> tag."""
