@@ -230,9 +230,10 @@ class crawler(object):
         self.cursor.execute(
             """
             INSERT OR REPLACE INTO inverted_index(word_id, doc_id) VALUES(
-                '%s', '%s'
+                ?, ?
             );
-            """ % (word_id, doc_id)
+            """,
+            (word_id, doc_id),
         )
         self.db_conn.commit()
 
@@ -255,15 +256,15 @@ class crawler(object):
     def insert_word_in_lexicon(self, word):
         try:
             self.cursor.execute(
-                """
-                INSERT INTO lexicon(word) VALUES('%s');
-                """ % word
+                'INSERT INTO lexicon(word) VALUES(?)',
+                (word,),
             )
             self.db_conn.commit()
             word_id = self.cursor.lastrowid
         except sqlite3.Error:
             self.cursor.execute(
-                """SELECT * FROM lexicon WHERE word='%s';""" % word
+                'SELECT * FROM lexicon WHERE word=?',
+                (word,),
             )
             entry = self.cursor.fetchone()
             word_id = entry[0]
@@ -272,15 +273,15 @@ class crawler(object):
     def insert_doc_in_doc_index(self, url):
         try:
             self.cursor.execute(
-                """
-                INSERT INTO doc_index(url) VALUES('%s');
-                """ % url
+                'INSERT INTO doc_index(url) VALUES(?)',
+                (url,),
             )
             self.db_conn.commit()
             doc_id = self.cursor.lastrowid
         except sqlite3.Error:
             self.cursor.execute(
-                """SELECT * FROM doc_index WHERE url='%s';""" % url
+                'SELECT * FROM doc_index WHERE url=?',
+                (url,),
             )
             entry = self.cursor.fetchone()
             doc_id = entry[0]
@@ -323,19 +324,16 @@ class crawler(object):
         """
         # print (from_doc_id, to_doc_id)
         if self.db_conn:
-            self.cursor.execute("INSERT INTO links VALUES ('%s', '%s')" % (
-                    from_doc_id,
-                    to_doc_id,
-                ))
+            self.cursor.execute(
+                'INSERT INTO links VALUES (?, ?)',
+                (from_doc_id, to_doc_id),
+            )
             self.db_conn.commit()
 
     def update_title(self, doc_id, title_text):
         self.cursor.execute(
-            """
-            UPDATE doc_index
-            SET title='%s'
-            WHERE id='%s'
-            """ % (title_text, doc_id)
+            'UPDATE doc_index SET title=? WHERE id=?',
+            (title_text, doc_id),
         )
         self.db_conn.commit()
 
@@ -502,9 +500,13 @@ class crawler(object):
             page_rank_map = get_page_rank_scores(links=links)
             for doc_id in page_rank_map:
                 self.cursor.execute(
-                    """INSERT OR REPLACE INTO page_ranks(doc_id, rank) VALUES(
-                        '%s', '%s'
-                    );""" % (doc_id, page_rank_map[doc_id]))
+                    """
+                    INSERT OR REPLACE INTO page_ranks(doc_id, rank) VALUES(
+                        ?, ?
+                    )
+                    """,
+                    (doc_id, page_rank_map[doc_id]),
+                )
             self.db_conn.commit()
 
     def get_page_ranks(self):
