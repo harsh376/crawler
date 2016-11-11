@@ -5,6 +5,7 @@ http://www.eecg.toronto.edu/
 http://www.cnn.com/
 http://www.cbc.ca/news
 http://www.cnn.com/politics
+http://www.cnn.com/world
 http://www.bbc.com/sport/football
 http://www.bbc.com/sport
 http://www.cbc.ca/sports/hockey/nhl
@@ -14,4 +15,3 @@ https://www.ft.com/
 https://www.ft.com/markets
 https://www.theweathernetwork.com/ca
 https://tenplay.com.au/channel-ten/masterchef/recipes
-https://news.ycombinator.com/
