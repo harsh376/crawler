@@ -518,7 +518,7 @@ if __name__ == '__main__':
     db_conn = sqlite3.connect('backend.db')
     bot = crawler(db_conn=db_conn, url_file='urls.txt')
     # Adjust the depth to determine how deep you want the crawler to crawl
-    bot.crawl(depth=0)
+    bot.crawl(depth=1)
     bot.update_page_ranks()
 
     data = bot.get_page_ranks()
