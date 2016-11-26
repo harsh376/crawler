@@ -1,11 +1,7 @@
-import boto
 import time
-
-ACCESS_KEY = '###########'
-SECRET_KEY = '###########'
+import boto3
 
 KEY_NAME = 'csc326_harsh'
-KEY_PATH = '/Users/harsh376/Desktop/Courses/Year4-Sem1/CSC326/backend326/aws'
 
 SECURITY_GROUP_NAME = 'csc326-group-2-012'
 SECURITY_GROUP_DESC = 'csc326 security group'
@@ -16,63 +12,90 @@ INSTANCE_TYPE = 't1.micro'
 
 def connect_to_aws():
     print('Connecting to AWS')
-    return boto.connect_ec2(
-        aws_access_key_id=ACCESS_KEY,
-        aws_secret_access_key=SECRET_KEY,
-    )
+    session = boto3.Session(profile_name='csc326')
+    ec2 = session.resource(service_name='ec2')
+
+    return ec2
 
 
 def create_key_pair(conn):
     print('Creating ssh key pair')
-    key_pair = conn.create_key_pair(KEY_NAME)
-    # change the path accordingly
-    key_pair.save(KEY_PATH)
+    outfile = open('newkey.pem', 'w')
+    key_pair = conn.create_key_pair(KeyName=KEY_NAME)
+    key_pair_out = str(key_pair.key_material)
+    outfile.write(key_pair_out)
 
 
 def configure_security_group(conn):
     print('Creating security group')
     sg = conn.create_security_group(
-        name=SECURITY_GROUP_NAME,
-        description=SECURITY_GROUP_DESC,
+        GroupName=SECURITY_GROUP_NAME,
+        Description=SECURITY_GROUP_DESC,
     )
 
     print('Adding rules for security group')
-    sg.authorize('ICMP', -1, -1, '0.0.0.0/0')
-    sg.authorize('TCP', 22, 22, '0.0.0.0/0')
-    sg.authorize('TCP', 80, 80, '0.0.0.0/0')
-    sg.authorize('TCP', 8080, 8080, '0.0.0.0/0')
-    return sg
+    # https://boto3.readthedocs.io/en/latest/reference/services/ec2.html#EC2.SecurityGroup.authorize_ingress
+    sg.authorize_ingress(
+        IpProtocol='ICMP',
+        FromPort=-1,
+        ToPort=-1,
+        CidrIp='0.0.0.0/0',
+    )
+    sg.authorize_ingress(
+        IpProtocol='TCP',
+        FromPort=22,
+        ToPort=22,
+        CidrIp='0.0.0.0/0',
+    )
+    sg.authorize_ingress(
+        IpProtocol='TCP',
+        FromPort=80,
+        ToPort=80,
+        CidrIp='0.0.0.0/0',
+    )
+    sg.authorize_ingress(
+        IpProtocol='TCP',
+        FromPort=8080,
+        ToPort=8080,
+        CidrIp='0.0.0.0/0',
+    )
 
 
 def configure_elastic_ip_address(conn, instance):
     print('Creating Elastic IP, associating it to instance')
-    elastic_ip = conn.allocate_address()
-    conn.associate_address(
-        instance_id=instance.id,
-        public_ip=elastic_ip.public_ip,
+
+    client = conn.meta.client
+    elastic_ip = client.allocate_address()
+    client.associate_address(
+        InstanceId=instance.id,
+        PublicIp=elastic_ip['PublicIp'],
     )
-    return elastic_ip.public_ip
+    return elastic_ip['PublicIp']
 
 
 def create_instance(conn):
     print('Creating instance')
-    reservation_obj = conn.run_instances(
-        image_id=IMAGE_ID,
-        instance_type=INSTANCE_TYPE,
-        security_groups=[SECURITY_GROUP_NAME],
-        key_name=KEY_NAME,
+
+    instances = conn.create_instances(
+        ImageId=IMAGE_ID,
+        MinCount=1,
+        MaxCount=1,
+        InstanceType=INSTANCE_TYPE,
+        SecurityGroups=[SECURITY_GROUP_NAME],
+        KeyName=KEY_NAME,
     )
-    instance = reservation_obj.instances[0]
-    return instance
+    return instances[0]
 
 
 def configure_aws():
     conn = connect_to_aws()
 
+    # TODO: add exception handling if it already exists
     # Only need to do this once
-    # create_key_pair(conn)
+    create_key_pair(conn)
 
-    # Create security group
+    # TODO: add exception handling if it already exists
+    # Only need to do this once
     configure_security_group(conn)
 
     # Create instance
@@ -81,18 +104,23 @@ def configure_aws():
     return conn, instance
 
 
-def get_instance_status(conn, instance_ids=[]):
-    instances = conn.get_all_instance_status(instance_ids=instance_ids)
-    if not instances:
-        return 'working on it'
-    else:
-        return instances[0].system_status.status
+def is_instance_up(conn, instance):
+    client = conn.meta.client
+
+    response = client.describe_instance_status(
+        InstanceIds=[instance.id],
+    )
+    instance_statuses = response['InstanceStatuses']
+
+    if instance_statuses:
+        return instance_statuses[0]['SystemStatus']['Status'] == 'ok'
+    return False
 
 
 def setup():
     conn, instance = configure_aws()
 
-    while get_instance_status(conn, instance_ids=[instance.id]) != 'ok':
+    while not is_instance_up(conn, instance=instance):
         time.sleep(1)
 
     public_ip = configure_elastic_ip_address(conn, instance)
