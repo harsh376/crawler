@@ -1,6 +1,9 @@
 import time
 import boto3
 
+from botocore.exceptions import ClientError
+
+
 KEY_NAME = 'csc326_harsh'
 
 SECURITY_GROUP_NAME = 'csc326-group-2-012'
@@ -20,45 +23,49 @@ def connect_to_aws():
 
 def create_key_pair(conn):
     print('Creating ssh key pair')
-    outfile = open('newkey.pem', 'w')
-    key_pair = conn.create_key_pair(KeyName=KEY_NAME)
-    key_pair_out = str(key_pair.key_material)
-    outfile.write(key_pair_out)
+    try:
+        key_pair = conn.create_key_pair(KeyName=KEY_NAME)
+        key_pair_out = str(key_pair.key_material)
+        outfile = open('key.pem', 'w')
+        outfile.write(key_pair_out)
+    except ClientError:
+        print ('Key pair: ' + KEY_NAME + ' already exists')
 
 
 def configure_security_group(conn):
     print('Creating security group')
-    sg = conn.create_security_group(
-        GroupName=SECURITY_GROUP_NAME,
-        Description=SECURITY_GROUP_DESC,
-    )
-
-    print('Adding rules for security group')
-    # https://boto3.readthedocs.io/en/latest/reference/services/ec2.html#EC2.SecurityGroup.authorize_ingress
-    sg.authorize_ingress(
-        IpProtocol='ICMP',
-        FromPort=-1,
-        ToPort=-1,
-        CidrIp='0.0.0.0/0',
-    )
-    sg.authorize_ingress(
-        IpProtocol='TCP',
-        FromPort=22,
-        ToPort=22,
-        CidrIp='0.0.0.0/0',
-    )
-    sg.authorize_ingress(
-        IpProtocol='TCP',
-        FromPort=80,
-        ToPort=80,
-        CidrIp='0.0.0.0/0',
-    )
-    sg.authorize_ingress(
-        IpProtocol='TCP',
-        FromPort=8080,
-        ToPort=8080,
-        CidrIp='0.0.0.0/0',
-    )
+    try:
+        sg = conn.create_security_group(
+            GroupName=SECURITY_GROUP_NAME,
+            Description=SECURITY_GROUP_DESC,
+        )
+        print('Adding rules for security group')
+        sg.authorize_ingress(
+            IpProtocol='ICMP',
+            FromPort=-1,
+            ToPort=-1,
+            CidrIp='0.0.0.0/0',
+        )
+        sg.authorize_ingress(
+            IpProtocol='TCP',
+            FromPort=22,
+            ToPort=22,
+            CidrIp='0.0.0.0/0',
+        )
+        sg.authorize_ingress(
+            IpProtocol='TCP',
+            FromPort=80,
+            ToPort=80,
+            CidrIp='0.0.0.0/0',
+        )
+        sg.authorize_ingress(
+            IpProtocol='TCP',
+            FromPort=8080,
+            ToPort=8080,
+            CidrIp='0.0.0.0/0',
+        )
+    except ClientError:
+        print ('Security group: ' + SECURITY_GROUP_NAME + ' already exists')
 
 
 def configure_elastic_ip_address(conn, instance):
@@ -90,15 +97,10 @@ def create_instance(conn):
 def configure_aws():
     conn = connect_to_aws()
 
-    # TODO: add exception handling if it already exists
-    # Only need to do this once
     create_key_pair(conn)
 
-    # TODO: add exception handling if it already exists
-    # Only need to do this once
     configure_security_group(conn)
 
-    # Create instance
     instance = create_instance(conn)
 
     return conn, instance
