@@ -1,5 +1,5 @@
 *.pyc
 .idea/
 venv/
-aws/csc326_harsh.pem
+aws/key.pem
 test.db

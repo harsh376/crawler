@@ -1,10 +1,12 @@
 import time
 import boto3
+import os
 
 from botocore.exceptions import ClientError
 
 
 KEY_NAME = 'csc326_harsh'
+KEY_PATH = os.path.join(os.path.dirname(__file__), 'key.pem')
 
 SECURITY_GROUP_NAME = 'csc326-group-2-012'
 SECURITY_GROUP_DESC = 'csc326 security group'
@@ -26,7 +28,7 @@ def create_key_pair(conn):
     try:
         key_pair = conn.create_key_pair(KeyName=KEY_NAME)
         key_pair_out = str(key_pair.key_material)
-        outfile = open('key.pem', 'w')
+        outfile = open(KEY_PATH, 'w')
         outfile.write(key_pair_out)
     except ClientError:
         print ('Key pair: ' + KEY_NAME + ' already exists')
