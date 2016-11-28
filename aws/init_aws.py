@@ -4,7 +4,7 @@ import os
 
 from botocore.exceptions import ClientError
 
-
+USER_NAME = 'ubuntu'
 KEY_NAME = 'csc326_harsh'
 KEY_PATH = os.path.join(os.path.dirname(__file__), 'key.pem')
 
@@ -30,6 +30,7 @@ def create_key_pair(conn):
         key_pair_out = str(key_pair.key_material)
         outfile = open(KEY_PATH, 'w')
         outfile.write(key_pair_out)
+        os.chmod(KEY_PATH, 0400)
     except ClientError:
         print ('Key pair: ' + KEY_NAME + ' already exists')
 
@@ -130,8 +131,7 @@ def setup():
     public_ip = configure_elastic_ip_address(conn, instance)
 
     print('Successfully created instance, associated Elastic IP address')
-    print('Public IP address: ' + public_ip)
-
+    return KEY_PATH, USER_NAME, public_ip
 
 if __name__ == '__main__':
     setup()

@@ -2,84 +2,59 @@
 
 ## Instructions
 
-### Create a virtual environment 
+### Setup virtualenv
 
-`cd ~/.../backend326`
+1. `cd ~/.../backend326`
 
-`virtualenv -p <SOME_PYTHON_PATH> venv`
+2. `virtualenv -p <SOME_PYTHON_PATH> venv`
+   
+    or
+    
+    `virtualenv -p /usr/bin/python2.7 venv`
 
-`virtualenv -p /usr/bin/python2.7 venv`
+    [http://docs.python-guide.org/en/latest/dev/virtualenvs/]
+    
+3. Activate virtualenv
 
-[http://docs.python-guide.org/en/latest/dev/virtualenvs/]
+    `source venv/bin/activate`
 
-### Activate virtual environment
+4. Install dependencies in virtualenv
 
-`source venv/bin/activate`
+    `pip install -r requirements.txt`
+    
+5. Deactivate virtualenv
 
-### Install dependencies
+    `deactivate`
 
-`pip install -r requirements.txt`
+### Running the crawler
 
-### Running the app
+1. Activate the virtualenv
 
-`python crawler.py`
+2. `python crawler.py`
+
 
 ### Running the tests
 
-`cd ~/.../backend326`
+1. Activate the virtualenv
   
-`nosetests`
+2. `nosetests -v`
 
-### Deactivate virtual environment
 
-`deactivate`
+### Deploy frontend app on EC2 instance
 
-## Setup AWS
+1. Add AWS credentials in `~/.aws/credentials` in the form:
 
-**Create instance** 
-
-`python deploy.py`
-
-**Configure instance**
-
-`ssh -i <some_key.pem> ubuntu@<public_ip>`
-
-`sudo apt-get install git`
-
-`sudo apt-get update`
-
-`sudo apt-get install python-pip`
-
-`sudo apt-get install python-virtualenv`
-
-`git clone https://github.com/harsh376/frontend326.git`
-
-`cd frontend`
-
-`virtualenv venv`
-
-`source venv/bin/activate`
-
-`pip install -r requirements.txt`
+    ``` 
     
-**Forward port 80 to 8080**
+        [csc326]
+        
+        aws_access_key_id = ####
+        
+        aws_secret_access_key = #####
+    ```
 
-`cd`
+2. `cd ~/.../backend326`
 
-`sudo vim /etc/sysctl.conf`
+3. Activate virtualenv
 
-Uncomment `net.ipv4.ip_forward`
-
-`sudo sysctl -p /etc/sysctl.conf`
-
-`cat /proc/sys/net/ipv4/ip_forward`
-
-`sudo iptables -A PREROUTING -t nat -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 8080`
-    
-**Start application**
-
-`cd frontend`
-
-`nohup python run.py &`
-
-`exit`
+4. `python deploy.py`
