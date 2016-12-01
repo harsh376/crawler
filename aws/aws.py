@@ -28,6 +28,7 @@ def create_key_pair(conn):
     try:
         key_pair = conn.create_key_pair(KeyName=KEY_NAME)
         key_pair_out = str(key_pair.key_material)
+        os.remove(KEY_PATH)
         outfile = open(KEY_PATH, 'w')
         outfile.write(key_pair_out)
         os.chmod(KEY_PATH, 0400)
@@ -122,6 +123,53 @@ def is_instance_up(conn, instance):
     return False
 
 
+def get_elastic_ip(client, instance_id):
+    response = client.describe_addresses(
+        Filters=[
+            {
+                'Name': 'instance-id',
+                'Values': [instance_id],
+            },
+        ]
+    )
+    public_ip, allocation_id = None, None
+    if response['Addresses']:
+        public_ip = response['Addresses'][0]['PublicIp']
+        allocation_id = response['Addresses'][0]['AllocationId']
+
+    return public_ip, allocation_id
+
+
+def release_elastic_ip(conn, instance_id):
+    client = conn.meta.client
+
+    # Get elastic IP associated with instance
+    public_ip, allocation_id = get_elastic_ip(client, instance_id)
+
+    if public_ip:
+        print ('Disassociating elastic IP')
+        # Disassociate elastic IP from EC2 instance
+        client.disassociate_address(PublicIp=public_ip)
+
+    if allocation_id:
+        print ('Releasing elastic IP')
+        # Release elastic IP
+        client.release_address(AllocationId=allocation_id)
+
+        print ('elastic IP: ' + public_ip + ' successfully released')
+
+
+def terminate_instance(conn, instance_id):
+    client = conn.meta.client
+
+    print ('Terminating instance: ' + instance_id)
+    try:
+        client.terminate_instances(InstanceIds=[instance_id])
+        print ('Successfully terminated instance: ' + instance_id)
+    except ClientError:
+        print ('Failed to terminate instance. Please check instance id')
+
+
 def setup():
     conn, instance = configure_aws()
 
@@ -133,5 +181,13 @@ def setup():
     print('Successfully created instance, associated Elastic IP address')
     return KEY_PATH, USER_NAME, public_ip
 
-if __name__ == '__main__':
-    setup()
+
+def teardown(instance_id):
+    # connect to AWS
+    conn = connect_to_aws()
+
+    # disassociate and release elastic IP for instance
+    release_elastic_ip(conn=conn, instance_id=instance_id)
+
+    # terminate EC2 instance
+    terminate_instance(conn=conn, instance_id=instance_id)

@@ -1,6 +1,6 @@
 import os
 
-from aws.init_aws import setup
+from aws.aws import setup
 from paramiko import SSHClient, AutoAddPolicy
 
 

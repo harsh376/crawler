@@ -42,15 +42,24 @@
 
 ### Deploy frontend app on EC2 instance
 
-1. Add AWS credentials in `~/.aws/credentials` in the form:
+1. Add AWS credentials in the following files:
 
+    in `~/.aws/credentials`
+    
     ``` 
     
         [csc326]
-        
         aws_access_key_id = ####
-        
         aws_secret_access_key = #####
+    ```
+        
+    in `~/.aws/config`
+        
+    ```
+    
+        [profile csc326]
+        output = text
+        region = us-east-1
     ```
 
 2. `cd ~/.../backend326`
@@ -58,3 +67,32 @@
 3. Activate virtualenv
 
 4. `python deploy.py`
+
+
+### Terminate EC2 instance
+
+1. Add AWS credentials in the following files:
+
+    in `~/.aws/credentials`
+    
+    ``` 
+    
+        [csc326]
+        aws_access_key_id = ####
+        aws_secret_access_key = #####
+    ```
+        
+    in `~/.aws/config`
+        
+    ```
+    
+        [profile csc326]
+        output = text
+        region = us-east-1
+    ```
+
+2. `cd ~/.../backend326`
+
+3. Activate virtualenv
+
+4. `python terminate.py <instance_id>`
