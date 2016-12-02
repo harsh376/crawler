@@ -38,6 +38,7 @@ def attr(elem, attr):
 
 
 WORD_SEPARATORS = re.compile(r'\s|\n|\r|\t|[^a-zA-Z0-9\-_]')
+TAGS_TO_COMBINE = 40
 
 
 class crawler(object):
@@ -68,6 +69,7 @@ class crawler(object):
             DROP TABLE IF EXISTS inverted_index;
             DROP TABLE IF EXISTS links;
             DROP TABLE IF EXISTS page_ranks;
+            DROP TABLE IF EXISTS snippets;
 
             CREATE TABLE IF NOT EXISTS
                 lexicon(id INTEGER PRIMARY KEY, word TEXT UNIQUE);
@@ -81,8 +83,11 @@ class crawler(object):
                 inverted_index(
                     word_id INTEGER,
                     doc_id INTEGER,
-                    UNIQUE(word_id, doc_id)
+                    snippet_id INTEGER,
+                    UNIQUE(word_id, doc_id, snippet_id)
                 );
+            CREATE TABLE IF NOT EXISTS
+                snippets(id INTEGER PRIMARY KEY, text TEXT UNIQUE);
             CREATE TABLE IF NOT EXISTS
                 links(from_doc_id INTEGER, to_doc_id INTEGER);
             CREATE TABLE IF NOT EXISTS
@@ -171,16 +176,23 @@ class crawler(object):
     def get_inverted_index(self):
         """
         :returns
-            {word_id1: set([doc_id1, doc_id2, ...], word_id2: set([doc_ids]))}
+            {
+                word_id1: set([
+                    (docid1, snip1), (docid1, snip2), (docid2, snip1)
+                ]),
+                word_id2: set([
+                    (docid1, snip1), (docid1, snip2), (docid2, snip1)
+                ])
+            }
         """
         self.cursor.execute('SELECT * FROM inverted_index;')
         results = self.cursor.fetchall()
         inverted_index = {}
-        for word_id, doc_id in results:
+        for word_id, doc_id, snippet_id in results:
             if word_id in inverted_index:
-                inverted_index[word_id].add(doc_id)
+                inverted_index[word_id].add((doc_id, snippet_id))
             else:
-                inverted_index[word_id] = set([doc_id])
+                inverted_index[word_id] = set([(doc_id, snippet_id)])
         return inverted_index
 
     def get_resolved_inverted_index(self):
@@ -223,17 +235,18 @@ class crawler(object):
                 resolved_index[word] = set([url])
         return resolved_index
 
-    def update_inverted_index(self, word_id, doc_id):
+    def update_inverted_index(self, word_id, doc_id, snippet_id):
         """
-        Adds (word_id, doc_id) entry into inverted_index table
+        Adds (word_id, doc_id, snippet_id) entry into inverted_index table
         """
         self.cursor.execute(
             """
-            INSERT OR REPLACE INTO inverted_index(word_id, doc_id) VALUES(
-                ?, ?
+            INSERT OR REPLACE INTO inverted_index(word_id, doc_id, snippet_id)
+            VALUES(
+                ?, ?, ?
             );
             """,
-            (word_id, doc_id),
+            (word_id, doc_id, snippet_id),
         )
         self.db_conn.commit()
 
@@ -287,16 +300,52 @@ class crawler(object):
             doc_id = entry[0]
         return doc_id
 
-    def word_id(self, word):
+    def insert_snippet_in_snippets(self, text):
+        try:
+            self.cursor.execute(
+                'INSERT INTO snippets(text) VALUES(?)',
+                (text,),
+            )
+            self.db_conn.commit()
+            snippet_id = self.cursor.lastrowid
+        except sqlite3.Error:
+            self.cursor.execute(
+                'SELECT * FROM snippets WHERE text=?',
+                (text,),
+            )
+            entry = self.cursor.fetchone()
+            snippet_id = entry[0]
+        return snippet_id
+
+    def update_snippet_in_snippets(self, snippet_id, text):
+        try:
+            self.cursor.execute(
+                'UPDATE snippets SET text=? WHERE id=?',
+                (text, snippet_id),
+            )
+            self.db_conn.commit()
+        except sqlite3.Error:
+            print 'error in update snippet'
+
+    def get_snippets(self):
+        self.cursor.execute('SELECT * FROM snippets;')
+        results = self.cursor.fetchall()
+        snippets = {}
+        for snippet_id, text in results:
+            snippets[snippet_id] = text
+        return snippets
+
+    def word_id(self, word, snippet_id):
         # TODO: add caching
-        # 1) add the word to the lexicon, if that fails, then the
-        # word is in the lexicon
-        # 2) query the lexicon for the id assigned to this word,
-        # store it in the word id cache, and return the id.
-        # word_id = self._mock_insert_word(word)
+        # insert word in the lexicon
         word_id = self.insert_word_in_lexicon(word=word)
 
-        self.update_inverted_index(word_id=word_id, doc_id=self._curr_doc_id)
+        # insert or update inverted_index with word_id, doc_id, snippet_id
+        self.update_inverted_index(
+            word_id=word_id,
+            doc_id=self._curr_doc_id,
+            snippet_id=snippet_id,
+        )
         return word_id
 
     def document_id(self, url):
@@ -380,17 +429,31 @@ class crawler(object):
         """Ignore visiting this type of tag"""
         pass
 
-    def _add_text(self, elem):
+    def _add_text(self, snippet):
         """
         Add some text to the document. This records word ids and word font
         sizes into the self._curr_words list for later processing.
         """
-        words = WORD_SEPARATORS.split(elem.string.lower())
+        clean_snippet = ''
+        words = WORD_SEPARATORS.split(snippet['string'].lower())
+
+        snippet_id = self.insert_snippet_in_snippets('init_snippet_val')
+
         for word in words:
             word = word.strip()
+            clean_snippet = clean_snippet + ' ' + word
+
             if word in self._ignored_words:
                 continue
-            self._curr_words.append((self.word_id(word), self._font_size))
+            self._curr_words.append(
+                (self.word_id(word, snippet_id), self._font_size),
+            )
+
+        # update snippets table with `clean_snippet`
+        self.update_snippet_in_snippets(
+            snippet_id=snippet_id,
+            text=clean_snippet,
+        )
 
     def _text_of(self, elem):
         """Get the text inside some element without any tags."""
@@ -420,6 +483,8 @@ class crawler(object):
 
         tag = soup.html
         stack = [DummyTag(), soup.html]
+        snippet = ''
+        tag_num = 0
 
         while tag and tag.next:
             tag = tag.next
@@ -450,7 +515,16 @@ class crawler(object):
 
             # text (text, cdata, comments, etc.)
             else:
-                self._add_text(tag)
+                if tag_num > TAGS_TO_COMBINE:
+                    snippet = {'string': snippet}
+                    self._add_text(snippet)
+
+                    # set values back to initial values
+                    snippet = ''
+                    tag_num = 0
+                else:
+                    snippet += tag
+                    tag_num += 1
 
     def crawl(self, depth=2, timeout=3):
         """Crawl the web!"""
@@ -520,7 +594,7 @@ if __name__ == '__main__':
     db_conn = sqlite3.connect('backend.db')
     bot = crawler(db_conn=db_conn, url_file='urls.txt')
     # Adjust the depth to determine how deep you want the crawler to crawl
-    bot.crawl(depth=1)
+    bot.crawl(depth=0)
     bot.update_page_ranks()
 
     data = bot.get_page_ranks()
