@@ -26,6 +26,7 @@ from collections import defaultdict
 import re
 import sqlite3
 from pagerank import get_page_rank_scores
+from summaries import get_summary
 
 
 def attr(elem, attr):
@@ -66,6 +67,7 @@ class crawler(object):
             DROP TABLE IF EXISTS lexicon;
             DROP TABLE IF EXISTS doc_index;
             DROP TABLE IF EXISTS inverted_index;
+            DROP TABLE IF EXISTS summaries;
             DROP TABLE IF EXISTS links;
             DROP TABLE IF EXISTS page_ranks;
 
@@ -82,6 +84,13 @@ class crawler(object):
                     word_id INTEGER,
                     doc_id INTEGER,
                     UNIQUE(word_id, doc_id)
+                );
+            CREATE TABLE IF NOT EXISTS
+                summaries(
+                    doc_id INTEGER,
+                    url TEXT,
+                    text TEXT,
+                    UNIQUE(doc_id, url)
                 );
             CREATE TABLE IF NOT EXISTS
                 links(from_doc_id INTEGER, to_doc_id INTEGER);
@@ -304,6 +313,20 @@ class crawler(object):
         doc_id = self.insert_doc_in_doc_index(url)
         return doc_id
 
+    def insert_summary(self, doc_id, url, summary):
+        try:
+            self.cursor.execute(
+                """
+                INSERT OR REPLACE INTO summaries(doc_id, url, text) VALUES(
+                    ?, ?, ?
+                );
+                """,
+                (doc_id, url, summary),
+            )
+            self.db_conn.commit()
+        except sqlite3.Error:
+            print ('Something went wrong while inserting summary for: ' + url)
+
     def _fix_url(self, curr_url, rel):
         """Given a url and either something relative to that url or another url,
         get a properly parsed url."""
@@ -469,6 +492,10 @@ class crawler(object):
             # we've already seen this document
             if doc_id in seen:
                 continue
+
+            # add summary of doc in summaries table
+            summary = get_summary(url)
+            self.insert_summary(doc_id, url, summary)
 
             seen.add(doc_id)  # mark this document as haven't been visited
 

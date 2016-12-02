@@ -3,3 +3,4 @@
 venv/
 aws/key.pem
 test.db
+read_from_db.py
