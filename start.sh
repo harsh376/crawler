@@ -1,7 +1,7 @@
 #!/bin/bash
 
 sudo apt-get update && \
-sudo apt-get install -y git python-pip python-dev python-virtualenv
+sudo apt-get install -y git python-pip python-dev python-virtualenv enchant
 
 git clone https://github.com/harsh376/frontend326.git
 git clone https://github.com/harsh376/backend326.git
